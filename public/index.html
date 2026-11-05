@@ -200,7 +200,8 @@
             width: 100%;
             height: 40px;
             transform-style: preserve-3d;
-            transition: transform 0.08s cubic-bezier(0.1, 0.9, 0.2, 1);
+            transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+            will-change: transform;
         }
 
         .ios-picker-item {
@@ -429,10 +430,10 @@
                             <label class="text-xs font-black text-amber-400 flex items-center gap-1">
                                 <i class="fa-solid fa-gauge text-cyan-400"></i> Odómetro Inicial (KM) - <span id="selectedVehicleLabel" class="text-white">JAC Sei3</span>
                             </label>
-                            <span class="text-[10px] opacity-70 italic">💡 Desliza o doble tap</span>
+                            <button type="button" onclick="enableManualKeyboardInput('initial')" class="text-[10px] px-2 py-1 rounded-lg bg-slate-800 border border-amber-400/40 text-amber-200 font-bold"><i class="fa-solid fa-keyboard mr-1"></i>Editar KM</button>
                         </div>
 
-                        <div id="initialIosWheelPicker" class="ios-picker-wrapper" ondblclick="enableManualKeyboardInput('initial')">
+                        <div id="initialIosWheelPicker" class="ios-picker-wrapper">
                             <div class="ios-picker-mask-top"></div>
                             <div class="ios-picker-highlight"></div>
                             <div class="ios-picker-viewport">
@@ -442,7 +443,7 @@
 
                             <div id="initialManualInputOverlay" class="ios-picker-manual-input hidden">
                                 <span class="text-xs font-bold text-amber-400">Ingresar Odómetro</span>
-                                <input type="number" id="initialManualInputField" class="w-44 px-3 py-2 bg-slate-900 border border-amber-400 rounded-xl text-center text-amber-300 font-digital font-bold text-lg" placeholder="136165">
+                                <input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" id="initialManualInputField" class="w-44 px-3 py-2 bg-slate-900 border border-amber-400 rounded-xl text-center text-amber-300 font-digital font-bold text-lg" placeholder="136165" aria-label="Kilometraje inicial en kilómetros">
                                 <div class="flex gap-2 pt-1">
                                     <button type="button" onclick="confirmManualInput('initial')" class="btn-3d btn-3d-amber px-3 py-1 text-xs font-bold rounded-lg">Aceptar</button>
                                     <button type="button" onclick="cancelManualInput('initial')" class="btn-3d btn-3d-dark px-3 py-1 text-xs font-bold rounded-lg">Cancelar</button>
@@ -824,10 +825,10 @@
                     <div class="space-y-2 bg-slate-900/80 p-3 rounded-2xl border border-amber-500/30">
                         <div class="flex justify-between items-center">
                             <label class="block font-bold text-amber-400"><i class="fa-solid fa-gauge text-cyan-400 mr-1"></i> Odómetro (KM)</label>
-                            <span class="text-[9px] opacity-70 italic">💡 Desliza o doble tap</span>
+                            <button type="button" onclick="enableManualKeyboardInput('stopModal')" class="text-[10px] px-2 py-1 rounded-lg bg-slate-800 border border-amber-400/40 text-amber-200 font-bold"><i class="fa-solid fa-keyboard mr-1"></i>Editar KM</button>
                         </div>
 
-                        <div id="modalStopIosWheelPicker" class="ios-picker-wrapper" ondblclick="enableManualKeyboardInput('stopModal')">
+                        <div id="modalStopIosWheelPicker" class="ios-picker-wrapper">
                             <div class="ios-picker-mask-top"></div>
                             <div class="ios-picker-highlight"></div>
                             <div class="ios-picker-viewport">
@@ -837,7 +838,7 @@
 
                             <div id="stopModalManualInputOverlay" class="ios-picker-manual-input hidden">
                                 <span class="text-xs font-bold text-amber-400">Ingresar Odómetro</span>
-                                <input type="number" id="stopModalManualInputField" class="w-44 px-3 py-2 bg-slate-900 border border-amber-400 rounded-xl text-center text-amber-300 font-digital font-bold text-lg" placeholder="136165">
+                                <input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" id="stopModalManualInputField" class="w-44 px-3 py-2 bg-slate-900 border border-amber-400 rounded-xl text-center text-amber-300 font-digital font-bold text-lg" placeholder="136165" aria-label="Kilometraje actual en kilómetros">
                                 <div class="flex gap-2 pt-1">
                                     <button type="button" onclick="confirmManualInput('stopModal')" class="btn-3d btn-3d-amber px-3 py-1 text-xs font-bold rounded-lg">Aceptar</button>
                                     <button type="button" onclick="cancelManualInput('stopModal')" class="btn-3d btn-3d-dark px-3 py-1 text-xs font-bold rounded-lg">Cancelar</button>
@@ -1291,64 +1292,148 @@
             if (!wrapper || !wheelEl) return;
 
             const radius = 90;
+            const degreesPerStep = 20;
+            const range = 6;
+            const items = [];
+            const displayEl = document.getElementById(displayValId);
+            let rotation = 0;
+            let dragging = false;
             let lastY = 0;
-            let isDragging = false;
+            let lastMoveTime = 0;
+            let velocity = 0;
+            let animationFrame = 0;
+            let wheelTimer = 0;
 
-            function renderWheelItems() {
-                wheelEl.innerHTML = '';
-                const baseVal = Math.round(odoValues[key]);
-                const range = 6;
-
-                for (let i = -range; i <= range; i++) {
-                    const itemVal = Math.max(0, baseVal + i * 5);
-                    const item = document.createElement('div');
-                    item.className = `ios-picker-item ${i === 0 ? 'active' : ''}`;
-                    const angle = i * 20;
-                    item.style.transform = `rotateX(${-angle}deg) translateZ(${radius}px)`;
-                    item.style.opacity = Math.max(0.12, 1 - Math.abs(i) * 0.17);
-                    item.innerText = itemVal.toLocaleString();
-                    wheelEl.appendChild(item);
-                }
-
-                const displayEl = document.getElementById(displayValId);
-                if (displayEl) displayEl.innerText = `${baseVal.toLocaleString()} km`;
+            for (let i = -range; i <= range; i++) {
+                const item = document.createElement('div');
+                item.className = `ios-picker-item ${i === 0 ? 'active' : ''}`;
+                item.style.transform = `rotateX(${-i * degreesPerStep}deg) translateZ(${radius}px)`;
+                item.style.opacity = Math.max(0.12, 1 - Math.abs(i) * 0.17);
+                wheelEl.appendChild(item);
+                items.push({ node: item, offset: i });
             }
 
-            wrapper.addEventListener('mousedown', (e) => { isDragging = true; lastY = e.clientY; });
-            window.addEventListener('mousemove', (e) => {
-                if (!isDragging) return;
-                const deltaY = e.clientY - lastY;
-                lastY = e.clientY;
-                if (Math.abs(deltaY) > 6) {
-                    const step = deltaY > 0 ? -5 : 5;
-                    odoValues[key] = Math.max(0, odoValues[key] + step);
-                    renderWheelItems();
+            function paintItems() {
+                const baseVal = Math.round(odoValues[key]);
+                items.forEach(({ node, offset }) => {
+                    node.textContent = Math.max(0, baseVal + offset * 5).toLocaleString();
+                });
+                if (displayEl) displayEl.textContent = `${baseVal.toLocaleString()} km`;
+            }
+
+            function paintRotation(animate = false) {
+                wheelEl.style.transition = animate ? '' : 'none';
+                wheelEl.style.transform = `rotateX(${rotation}deg)`;
+            }
+
+            function moveWheel(degrees) {
+                rotation += degrees;
+                while (rotation >= degreesPerStep) {
+                    odoValues[key] += 5;
+                    rotation -= degreesPerStep;
+                    paintItems();
                 }
+                while (rotation <= -degreesPerStep) {
+                    if (odoValues[key] <= 0) {
+                        odoValues[key] = 0;
+                        rotation = 0;
+                        velocity = 0;
+                        break;
+                    }
+                    odoValues[key] -= 5;
+                    rotation += degreesPerStep;
+                    paintItems();
+                }
+                paintRotation();
+            }
+
+            function stopAnimation() {
+                if (animationFrame) cancelAnimationFrame(animationFrame);
+                animationFrame = 0;
+            }
+
+            function snapWheel() {
+                rotation = 0;
+                paintRotation(true);
+            }
+
+            function startInertia() {
+                stopAnimation();
+                let previousTime = performance.now();
+                function frame(now) {
+                    const elapsed = Math.min(32, now - previousTime);
+                    previousTime = now;
+                    moveWheel(velocity * elapsed);
+                    velocity *= Math.exp(-0.006 * elapsed);
+                    if (Math.abs(velocity) > 0.025) {
+                        animationFrame = requestAnimationFrame(frame);
+                    } else {
+                        animationFrame = 0;
+                        if (Math.abs(rotation) >= degreesPerStep / 2) {
+                            const direction = Math.sign(rotation);
+                            if (odoValues[key] > 0 || direction > 0) odoValues[key] += direction * 5;
+                            paintItems();
+                        }
+                        snapWheel();
+                    }
+                }
+                animationFrame = requestAnimationFrame(frame);
+            }
+
+            wrapper.addEventListener('pointerdown', (event) => {
+                if (event.target.closest('.ios-picker-manual-input')) return;
+                stopAnimation();
+                dragging = true;
+                lastY = event.clientY;
+                lastMoveTime = performance.now();
+                velocity = 0;
+                wrapper.setPointerCapture(event.pointerId);
+                wheelEl.style.transition = 'none';
             });
-            window.addEventListener('mouseup', () => { isDragging = false; });
 
-            wrapper.addEventListener('touchstart', (e) => { isDragging = true; lastY = e.touches[0].clientY; }, { passive: true });
-            wrapper.addEventListener('touchmove', (e) => {
-                if (!isDragging) return;
-                const deltaY = e.touches[0].clientY - lastY;
-                lastY = e.touches[0].clientY;
-                if (Math.abs(deltaY) > 5) {
-                    const step = deltaY > 0 ? -5 : 5;
-                    odoValues[key] = Math.max(0, odoValues[key] + step);
-                    renderWheelItems();
-                }
-            }, { passive: true });
-            wrapper.addEventListener('touchend', () => { isDragging = false; });
+            wrapper.addEventListener('pointermove', (event) => {
+                if (!dragging) return;
+                const now = performance.now();
+                const delta = lastY - event.clientY;
+                const elapsed = Math.max(1, now - lastMoveTime);
+                lastY = event.clientY;
+                lastMoveTime = now;
+                velocity = Math.max(-1.2, Math.min(1.2, delta / elapsed));
+                moveWheel(delta);
+            });
 
-            wrapper.addEventListener('wheel', (e) => {
-                e.preventDefault();
-                const step = e.deltaY > 0 ? 5 : -5;
-                odoValues[key] = Math.max(0, odoValues[key] + step);
-                renderWheelItems();
+            function finishDrag(event) {
+                if (!dragging) return;
+                dragging = false;
+                if (event && wrapper.hasPointerCapture(event.pointerId)) wrapper.releasePointerCapture(event.pointerId);
+                startInertia();
+            }
+
+            wrapper.addEventListener('pointerup', finishDrag);
+            wrapper.addEventListener('pointercancel', finishDrag);
+            wrapper.addEventListener('wheel', (event) => {
+                event.preventDefault();
+                moveWheel(Math.max(-30, Math.min(30, event.deltaY * 0.4)));
+                clearTimeout(wheelTimer);
+                wheelTimer = setTimeout(() => {
+                    if (Math.abs(rotation) >= degreesPerStep / 2) {
+                        const direction = Math.sign(rotation);
+                        if (odoValues[key] > 0 || direction > 0) odoValues[key] += direction * 5;
+                        paintItems();
+                    }
+                    snapWheel();
+                }, 120);
             }, { passive: false });
 
-            iosPickers[key] = { render: renderWheelItems };
-            renderWheelItems();
+            iosPickers[key] = {
+                render() {
+                    stopAnimation();
+                    rotation = 0;
+                    paintItems();
+                    paintRotation(true);
+                }
+            };
+            paintItems();
         }
 
         function stepIosWheel(key, delta) {
@@ -1364,16 +1449,25 @@
             field.value = Math.round(odoValues[key]);
             field.focus();
             field.select();
+            field.onkeydown = (event) => {
+                if (event.key === 'Enter') confirmManualInput(key);
+                if (event.key === 'Escape') cancelManualInput(key);
+            };
         }
 
         function confirmManualInput(key) {
             const overlayId = key === 'initial' ? 'initialManualInputOverlay' : 'stopModalManualInputOverlay';
             const fieldId = key === 'initial' ? 'initialManualInputField' : 'stopModalManualInputField';
-            const val = parseFloat(document.getElementById(fieldId).value);
-            if (!isNaN(val) && val >= 0) {
-                odoValues[key] = Math.round(val);
+            const rawValue = document.getElementById(fieldId).value.trim();
+            if (/^\d+$/.test(rawValue)) {
+                const val = Number(rawValue);
+                odoValues[key] = val;
                 if (iosPickers[key]) iosPickers[key].render();
-                showToast(`✏️ Odómetro ajustado a ${Math.round(val)} km`);
+                showToast(`✏️ Odómetro ajustado a ${val.toLocaleString()} km`);
+            } else {
+                showToast('Ingresa un kilometraje válido usando números enteros.', 'error');
+                document.getElementById(fieldId).focus();
+                return;
             }
             document.getElementById(overlayId).classList.add('hidden');
         }
