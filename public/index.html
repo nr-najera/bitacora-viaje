@@ -300,6 +300,7 @@
                 <p class="text-[10px] text-slate-300 font-medium hidden sm:block">
                     Por <span class="text-amber-300 font-bold">José Luis Nájera García</span>
                 </p>
+                <p id="headerDateTime" class="text-[9px] text-cyan-200 font-mono font-semibold tracking-tight" aria-label="Fecha y hora local"></p>
             </div>
         </div>
 
@@ -1240,6 +1241,8 @@
         });
 
         window.onload = function() {
+            updateHeaderDateTime();
+            setInterval(updateHeaderDateTime, 1000);
             loadTollsFromStorage();
             loadFinishedTripsFromStorage();
             loadActiveTripFromStorage();
@@ -1257,6 +1260,15 @@
                 restoreActiveTripUI();
             }
         };
+
+        function updateHeaderDateTime() {
+            const clock = document.getElementById('headerDateTime');
+            if (!clock) return;
+            clock.textContent = new Intl.DateTimeFormat('es-MX', {
+                dateStyle: 'medium',
+                timeStyle: 'medium'
+            }).format(new Date());
+        }
 
         function updateVehicleOdometersMemory() {
             const lastOdo = vehicleOdometers[selectedVehicle] || (selectedVehicle === 'Volkswagen up!' ? 190377 : 136165);
